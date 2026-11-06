@@ -14,7 +14,8 @@ const indexHtml = `<!DOCTYPE html>
 `;
 
 const vhost = `<VirtualHost *:80>
-    ServerName www.example.com
+    ServerName example.com
+    ServerAlias www.example.com
     DocumentRoot /var/www/html
 
     <Directory /var/www/html>
@@ -42,8 +43,9 @@ echo "$UBUNTU_IP"`,
 sudo apt install -y apache2
 sudo service apache2 start`,
   site: tee("/var/www/html/index.html", indexHtml),
-  vhost: `${tee("/etc/apache2/sites-available/www.example.com.conf", vhost)}
-sudo a2ensite www.example.com.conf
+  vhost: `${tee("/etc/apache2/sites-available/example.com.conf", vhost)}
+sudo a2dissite www.example.com.conf db.example.com.conf || true
+sudo a2ensite example.com
 sudo apache2ctl configtest
 sudo service apache2 restart
 ss -ltn | grep ':80'
@@ -55,15 +57,19 @@ fi
 UBUNTU_IP=\$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
 echo "$UBUNTU_IP"
 if [ -n "$UBUNTU_IP" ]; then
-sudo tee /etc/dnsmasq.d/www.example.com.conf >/dev/null <<EOF
-address=/www.example.com/\${UBUNTU_IP}
+printf '%s example.com\\n' "$UBUNTU_IP" | sudo tee /etc/dnsmasq.hosts >/dev/null
+sudo tee /etc/dnsmasq.d/example.com.conf >/dev/null <<'EOF'
+addn-hosts=/etc/dnsmasq.hosts
+cname=www.example.com,example.com
 EOF
-cat /etc/dnsmasq.d/www.example.com.conf
+sudo rm -f /etc/dnsmasq.d/www.example.com.conf /etc/dnsmasq.d/db.example.com.conf
+cat /etc/dnsmasq.hosts /etc/dnsmasq.d/example.com.conf
 sudo dnsmasq --test
 sudo service dnsmasq stop
 if pidof dnsmasq >/dev/null 2>&1; then sudo kill -9 \$(pidof dnsmasq); fi
 pidof dnsmasq || echo stopped
 sudo service dnsmasq start
+dig example.com @"$UBUNTU_IP"
 dig www.example.com @"$UBUNTU_IP"
 fi`,
   resolv: `# On Kali. Use Ubuntu's subnet. 192.168.200.2/24 matches Ubuntu at 192.168.200.1/24.
@@ -113,8 +119,9 @@ export default function Page() {
         <h1 className="mt-1 font-heading text-4xl leading-tight">Web server</h1>
         <p className="mt-3 text-lg leading-7">
           Ubuntu and Kali already share <code className="font-mono">veth-peer</code>.
-          Ubuntu already runs dnsmasq for Kali. Install Apache, serve{" "}
-          <code className="font-mono">www.example.com</code>, and point Kali’s{" "}
+          Ubuntu already runs dnsmasq for Kali. Install Apache, enable the{" "}
+          <code className="font-mono">example.com</code> site, add a DNS record{" "}
+          <code className="font-mono">www</code>, and point Kali’s{" "}
           <code className="font-mono">resolv.conf</code> at Ubuntu.
         </p>
       </header>
@@ -134,10 +141,12 @@ export default function Page() {
 
       <Block
         title="4. Virtual host"
-        where="/etc/apache2/sites-available/www.example.com.conf"
+        where="/etc/apache2/sites-available/example.com.conf"
         text={commands.vhost}
       />
       <p className="text-sm leading-6 text-muted-foreground">
+        <code className="font-mono">a2ensite example.com</code> is the only site you enable.{" "}
+        <code className="font-mono">ServerAlias www.example.com</code> is that same site accepting the www name, not a second site.{" "}
         The curl should print the heading <code className="font-mono">www.example.com</code>.
         If it says it failed to connect to port 80, Apache is not running. Run{" "}
         <code className="font-mono">sudo service apache2 start</code> and read{" "}
@@ -146,14 +155,16 @@ export default function Page() {
 
       <Block
         title="5. Name in dnsmasq"
-        where="/etc/dnsmasq.d/www.example.com.conf"
+        where="/etc/dnsmasq.d/example.com.conf"
         text={commands.dns}
       />
       <p className="text-sm leading-6 text-muted-foreground">
-        The file is one line: <code className="font-mono">address=/www.example.com/</code> followed by the veth address.{" "}
-        <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print that address before tee.
+        <code className="font-mono">/etc/dnsmasq.hosts</code> is the A record for <code className="font-mono">example.com</code>.{" "}
+        <code className="font-mono">cname=www.example.com,example.com</code> is the www record, so the name Kali opens is <code className="font-mono">www.example.com</code>.{" "}
+        Keep that hosts file out of <code className="font-mono">/etc/dnsmasq.d</code>. dnsmasq reads every file there as config.{" "}
+        <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print the veth address before tee.
         If veth-peer has no IPv4, the block adds <code className="font-mono">10.212.0.1/30</code> and reads it again.
-        <code className="font-mono">cat</code> must show that numeric address, never the literal characters <code className="font-mono">{"${UBUNTU_IP}"}</code>.{" "}
+        <code className="font-mono">cat /etc/dnsmasq.hosts</code> must show that numeric address, never a blank line.{" "}
         <code className="font-mono">service dnsmasq stop</code> can say {'"(not running)"'} while a hand-started{" "}
         <code className="font-mono">dnsmasq --interface=veth-peer --bind-interfaces --no-daemon</code> still owns port 53.
         That process does not read <code className="font-mono">/etc/dnsmasq.d</code>, so queries come back NXDOMAIN and{" "}
@@ -161,10 +172,8 @@ export default function Page() {
         <code className="font-mono">sudo kill -9 $(pidof dnsmasq)</code> stops that shell job.
         Then <code className="font-mono">service dnsmasq start</code> reads the drop-in.{" "}
         <code className="font-mono">echo stopped</code> must appear before that start.
-        Success is full dig status NOERROR, flag aa, and the A record equal to the veth address: flags{" "}
-        <code className="font-mono">qr aa rd ra</code> and{" "}
-        <code className="font-mono">www.example.com. 0 IN A 192.168.200.1</code>.
-        An empty <code className="font-mono">dig +short</code> means there is still no A record.
+        Success is <code className="font-mono">example.com</code> returning the veth address, and{" "}
+        <code className="font-mono">www.example.com</code> returning a CNAME to <code className="font-mono">example.com</code> plus that same address.
       </p>
 
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
@@ -188,12 +197,12 @@ export default function Page() {
         <h2 className="font-heading text-xl">Files</h2>
         <ul className="mt-2 list-disc pl-5">
           <li><code className="font-mono">/var/www/html/index.html</code> on Ubuntu</li>
-          <li><code className="font-mono">/etc/apache2/sites-available/www.example.com.conf</code> on Ubuntu</li>
-          <li><code className="font-mono">/etc/dnsmasq.d/www.example.com.conf</code> on Ubuntu</li>
+          <li><code className="font-mono">/etc/apache2/sites-available/example.com.conf</code> on Ubuntu</li>
+          <li><code className="font-mono">/etc/dnsmasq.hosts</code> and <code className="font-mono">/etc/dnsmasq.d/example.com.conf</code> on Ubuntu</li>
           <li><code className="font-mono">/etc/resolv.conf</code> on Kali</li>
         </ul>
         <p className="mt-3 text-muted-foreground">
-          The same files are in this repo under <code className="font-mono">lab/</code>. The dnsmasq copy is one <code className="font-mono">address=/www.example.com/192.168.200.1</code> line. The Kali copy uses that same address as its nameserver.
+          The same files are in this repo under <code className="font-mono">lab/</code>. The hosts copy is <code className="font-mono">192.168.200.1 example.com</code>, and the dnsmasq copy adds the www CNAME. The Kali copy uses that address as its nameserver.
         </p>
       </section>
     </main>
