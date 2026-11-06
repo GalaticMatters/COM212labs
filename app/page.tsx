@@ -66,15 +66,15 @@ pidof dnsmasq || echo stopped
 sudo service dnsmasq start
 dig db.example.com @"$UBUNTU_IP"
 fi`,
-  resolv: `# On Kali. Skip the add if ip -4 addr show veth-peer already shows an address.
-if ! ip -4 -o addr show dev veth-peer | grep -q .; then
-  sudo ip addr add 10.212.0.2/30 dev veth-peer
-fi
-# replace 192.168.200.1 with the address Ubuntu printed. If Ubuntu had no address and the guide added 10.212.0.1/30, use 10.212.0.1 instead.
+  resolv: `# On Kali. Use Ubuntu's subnet. 192.168.200.2/24 matches Ubuntu at 192.168.200.1/24.
+# If the guide had to add 10.212.0.1/30 on Ubuntu, use 10.212.0.2/30 here instead.
+sudo ip addr replace 192.168.200.2/24 dev veth-peer
+# UBUNTU_IP must be the address Ubuntu printed with echo "\$UBUNTU_IP".
 UBUNTU_IP=192.168.200.1
 sudo rm -f /etc/resolv.conf
-printf 'nameserver %s\\n' "$UBUNTU_IP" | sudo tee /etc/resolv.conf
-ping -c 3 "$UBUNTU_IP"
+printf 'nameserver %s\\n' "\$UBUNTU_IP" | sudo tee /etc/resolv.conf
+ping -c 3 "\$UBUNTU_IP"
+dig +short db.example.com
 curl -fsS http://db.example.com`,
 };
 
@@ -150,33 +150,33 @@ export default function Page() {
         text={commands.dns}
       />
       <p className="text-sm leading-6 text-muted-foreground">
-        HUP does not load a new address= line.{" "}
-        <code className="font-mono">echo stopped</code> must appear before{" "}
-        <code className="font-mono">sudo service dnsmasq start</code>.
-        If start says port 53 is in use, kill the pid that{" "}
-        <code className="font-mono">pidof dnsmasq</code> prints and start once more.
-        Do not use force-reload.{" "}
-        <code className="font-mono">sudo dnsmasq --test</code> prints a syntax error before the stop.
-        A bad file usually contains a blank address or the literal characters <code className="font-mono">{"${UBUNTU_IP}"}</code>.{" "}
+        The file is one line: <code className="font-mono">address=/db.example.com/</code> followed by the veth address.{" "}
+        <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print that address before tee.
         If veth-peer has no IPv4, the block adds <code className="font-mono">10.212.0.1/30</code> and reads it again.
-        <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print the veth address before tee.
-        The file is written only when that value is non-empty.
-        Then <code className="font-mono">cat /etc/dnsmasq.d/db.example.com.conf</code> must show one line:{" "}
-        <code className="font-mono">address=/db.example.com/</code> followed by that numeric address.{" "}
-        One address= line is enough. dnsmasq does not need local= to keep the name off the public resolver when address= matches.{" "}
-        <code className="font-mono">dig db.example.com</code> must show status NOERROR and that same address in the answer section.{" "}
-        <code className="font-mono">dig +short</code> printing nothing means NXDOMAIN, which is what the removed local= line produced.
+        <code className="font-mono">cat</code> must show that numeric address, never the literal characters <code className="font-mono">{"${UBUNTU_IP}"}</code>.{" "}
+        <code className="font-mono">service dnsmasq stop</code> can say {'"(not running)"'} while a hand-started{" "}
+        <code className="font-mono">dnsmasq --interface=veth-peer --bind-interfaces --no-daemon</code> still owns port 53.
+        That process does not read <code className="font-mono">/etc/dnsmasq.d</code>, so queries come back NXDOMAIN and{" "}
+        <code className="font-mono">dig +short</code> prints nothing.{" "}
+        <code className="font-mono">sudo kill -9 $(pidof dnsmasq)</code> stops that shell job.
+        Then <code className="font-mono">service dnsmasq start</code> reads the drop-in.{" "}
+        <code className="font-mono">echo stopped</code> must appear before that start.
+        Success is full dig status NOERROR, flag aa, and the A record equal to the veth address: flags{" "}
+        <code className="font-mono">qr aa rd ra</code> and{" "}
+        <code className="font-mono">db.example.com. 0 IN A 192.168.200.1</code>.
+        An empty <code className="font-mono">dig +short</code> means there is still no A record.
       </p>
 
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
       <p className="text-sm leading-6 text-muted-foreground">
-        Skip the add if <code className="font-mono">ip -4 addr show veth-peer</code> already shows an address.
-        Set <code className="font-mono">UBUNTU_IP</code> to the address Ubuntu printed with{" "}
+        Ubuntu’s address is <code className="font-mono">192.168.200.1/24</code>. Kali needs an address in that subnet, such as{" "}
+        <code className="font-mono">192.168.200.2/24</code>.{" "}
+        <code className="font-mono">10.212.0.2/30</code> is only correct when Ubuntu had no IPv4 and the guide added{" "}
+        <code className="font-mono">10.212.0.1/30</code>. Those two subnets do not reach each other.{" "}
+        <code className="font-mono">UBUNTU_IP</code> must be the address Ubuntu printed with{" "}
         <code className="font-mono">{'echo "$UBUNTU_IP"'}</code>.{" "}
-        <code className="font-mono">10.212.0.1</code> is only correct when Ubuntu had no address and the guide added{" "}
-        <code className="font-mono">10.212.0.1/30</code>.
-        That printed address is the nameserver in <code className="font-mono">/etc/resolv.conf</code>.
-        The curl should print the same page. Then open <code className="font-mono">http://db.example.com</code> in the Kali browser.
+        <code className="font-mono">dig +short</code> should print that address, and the curl should print the same page.
+        Then open <code className="font-mono">http://db.example.com</code> in the Kali browser.
         If the browser loads a different site, turn DNS over HTTPS off.
       </p>
 
@@ -189,7 +189,7 @@ export default function Page() {
           <li><code className="font-mono">/etc/resolv.conf</code> on Kali</li>
         </ul>
         <p className="mt-3 text-muted-foreground">
-          The same files are in this repo under <code className="font-mono">lab/</code>. The dnsmasq copy is one <code className="font-mono">address=/db.example.com/192.168.200.1</code> line. The Kali copy uses <code className="font-mono">10.212.0.1</code> until you replace it with the address Ubuntu printed.
+          The same files are in this repo under <code className="font-mono">lab/</code>. The dnsmasq copy is one <code className="font-mono">address=/db.example.com/192.168.200.1</code> line. The Kali copy uses that same address as its nameserver.
         </p>
       </section>
     </main>
