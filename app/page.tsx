@@ -71,9 +71,8 @@ fi`,
 if ! ip -4 -o addr show dev veth-peer | grep -q .; then
   sudo ip addr add 10.212.0.2/30 dev veth-peer
 fi
-# Set UBUNTU_IP to the address Ubuntu printed (echo "$UBUNTU_IP").
-# 10.212.0.1 is only correct when Ubuntu had no address and the guide added 10.212.0.1/30.
-UBUNTU_IP=
+# replace 192.168.200.1 with the address Ubuntu printed. If Ubuntu had no address and the guide added 10.212.0.1/30, use 10.212.0.1 instead.
+UBUNTU_IP=192.168.200.1
 sudo rm -f /etc/resolv.conf
 printf 'nameserver %s\\n' "$UBUNTU_IP" | sudo tee /etc/resolv.conf
 ping -c 3 "$UBUNTU_IP"
