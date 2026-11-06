@@ -57,15 +57,14 @@ echo "$UBUNTU_IP"
 if [ -n "$UBUNTU_IP" ]; then
 sudo tee /etc/dnsmasq.d/db.example.com.conf >/dev/null <<EOF
 address=/db.example.com/\${UBUNTU_IP}
-local=/db.example.com/
 EOF
 cat /etc/dnsmasq.d/db.example.com.conf
 sudo dnsmasq --test
 sudo service dnsmasq stop
-sudo kill \$(pidof dnsmasq) 2>/dev/null || true
+if pidof dnsmasq >/dev/null 2>&1; then sudo kill -9 \$(pidof dnsmasq); fi
 pidof dnsmasq || echo stopped
 sudo service dnsmasq start
-dig +short db.example.com @"$UBUNTU_IP"
+dig db.example.com @"$UBUNTU_IP"
 fi`,
   resolv: `# On Kali. Skip the add if ip -4 addr show veth-peer already shows an address.
 if ! ip -4 -o addr show dev veth-peer | grep -q .; then
@@ -162,10 +161,11 @@ export default function Page() {
         If veth-peer has no IPv4, the block adds <code className="font-mono">10.212.0.1/30</code> and reads it again.
         <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print the veth address before tee.
         The file is written only when that value is non-empty.
-        Then <code className="font-mono">cat /etc/dnsmasq.d/db.example.com.conf</code> must show{" "}
+        Then <code className="font-mono">cat /etc/dnsmasq.d/db.example.com.conf</code> must show one line:{" "}
         <code className="font-mono">address=/db.example.com/</code> followed by that numeric address.{" "}
-        <code className="font-mono">dig</code> should print the veth address.{" "}
-        <code className="font-mono">local=</code> keeps <code className="font-mono">db.example.com</code> from being looked up on the Internet.
+        One address= line is enough. dnsmasq does not need local= to keep the name off the public resolver when address= matches.{" "}
+        <code className="font-mono">dig db.example.com</code> must show status NOERROR and that same address in the answer section.{" "}
+        <code className="font-mono">dig +short</code> printing nothing means NXDOMAIN, which is what the removed local= line produced.
       </p>
 
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
@@ -189,7 +189,7 @@ export default function Page() {
           <li><code className="font-mono">/etc/resolv.conf</code> on Kali</li>
         </ul>
         <p className="mt-3 text-muted-foreground">
-          The same files are in this repo under <code className="font-mono">lab/</code>. The copies there use <code className="font-mono">10.212.0.1</code>. The commands above write your real address into dnsmasq and resolv.conf.
+          The same files are in this repo under <code className="font-mono">lab/</code>. The dnsmasq copy is one <code className="font-mono">address=/db.example.com/192.168.200.1</code> line. The Kali copy uses <code className="font-mono">10.212.0.1</code> until you replace it with the address Ubuntu printed.
         </p>
       </section>
     </main>

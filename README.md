@@ -22,6 +22,6 @@ The dev server listens on port **3847**.
 | `/etc/dnsmasq.d/db.example.com.conf` | Ubuntu |
 | `/etc/resolv.conf` | Kali |
 
-The copies in `lab/` use `10.212.0.1` as a stand-in. Use the address on `veth-peer`.
+The dnsmasq copy in `lab/` is `address=/db.example.com/192.168.200.1`. The Kali copy uses `10.212.0.1` until you replace it with the address on `veth-peer`.
 
 Kali is done when `curl http://db.example.com` prints the page.
