@@ -74,7 +74,8 @@ UBUNTU_IP=192.168.200.1
 sudo rm -f /etc/resolv.conf
 printf 'nameserver %s\\n' "\$UBUNTU_IP" | sudo tee /etc/resolv.conf
 ping -c 3 "\$UBUNTU_IP"
-dig +short db.example.com
+UV_USE_IO_URING=0 dig +short db.example.com
+getent hosts db.example.com
 curl -fsS http://db.example.com`,
 };
 
@@ -175,7 +176,11 @@ export default function Page() {
         <code className="font-mono">10.212.0.1/30</code>. Those two subnets do not reach each other.{" "}
         <code className="font-mono">UBUNTU_IP</code> must be the address Ubuntu printed with{" "}
         <code className="font-mono">{'echo "$UBUNTU_IP"'}</code>.{" "}
-        <code className="font-mono">dig +short</code> should print that address, and the curl should print the same page.
+        If dig aborts with <code className="font-mono">uv.c:142</code> and{" "}
+        <code className="font-mono">RUNTIME_CHECK(fd &gt;= 0)</code>, libuv could not open an event fd (io_uring is blocked).
+        Prefix dig with <code className="font-mono">UV_USE_IO_URING=0</code>.{" "}
+        <code className="font-mono">getent hosts db.example.com</code> should print{" "}
+        <code className="font-mono">192.168.200.1</code> and curl should print the page.
         Then open <code className="font-mono">http://db.example.com</code> in the Kali browser.
         If the browser loads a different site, turn DNS over HTTPS off.
       </p>
