@@ -15,9 +15,9 @@ const indexHtml = `<!DOCTYPE html>
 
 const vhost = `<VirtualHost *:80>
     ServerName db.example.com
-    DocumentRoot /var/www/db.example.com
+    DocumentRoot /var/www/html
 
-    <Directory /var/www/db.example.com>
+    <Directory /var/www/html>
         Require all granted
         Options -Indexes
         AllowOverride None
@@ -36,8 +36,7 @@ UBUNTU_IP=$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
 echo "$UBUNTU_IP"`,
   install: `sudo apt update
 sudo apt install -y apache2`,
-  site: `sudo mkdir -p /var/www/db.example.com
-${tee("/var/www/db.example.com/index.html", indexHtml)}`,
+  site: tee("/var/www/html/index.html", indexHtml),
   vhost: `${tee("/etc/apache2/sites-available/db.example.com.conf", vhost)}
 sudo a2ensite db.example.com.conf
 sudo systemctl reload apache2
@@ -106,7 +105,7 @@ export default function Page() {
 
       <Block
         title="3. Page"
-        where="/var/www/db.example.com/index.html"
+        where="/var/www/html/index.html"
         text={commands.site}
       />
 
@@ -139,7 +138,7 @@ export default function Page() {
       <section className="rounded-lg border border-border px-4 py-3 text-sm leading-6">
         <h2 className="font-heading text-xl">Files</h2>
         <ul className="mt-2 list-disc pl-5">
-          <li><code className="font-mono">/var/www/db.example.com/index.html</code> on Ubuntu</li>
+          <li><code className="font-mono">/var/www/html/index.html</code> on Ubuntu</li>
           <li><code className="font-mono">/etc/apache2/sites-available/db.example.com.conf</code> on Ubuntu</li>
           <li><code className="font-mono">/etc/dnsmasq.d/db.example.com.conf</code> on Ubuntu</li>
           <li><code className="font-mono">/etc/resolv.conf</code> on Kali</li>

@@ -17,7 +17,7 @@ The dev server listens on port **3847**.
 
 | File | Machine |
 | --- | --- |
-| `/var/www/db.example.com/index.html` | Ubuntu |
+| `/var/www/html/index.html` | Ubuntu |
 | `/etc/apache2/sites-available/db.example.com.conf` | Ubuntu |
 | `/etc/dnsmasq.d/db.example.com.conf` | Ubuntu |
 | `/etc/resolv.conf` | Kali |
