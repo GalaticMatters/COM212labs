@@ -32,7 +32,11 @@ function tee(path: string, contents: string) {
 
 const commands = {
   address: `ip -4 addr show veth-peer
-UBUNTU_IP=$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
+UBUNTU_IP=\$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
+if [ -z "$UBUNTU_IP" ]; then
+  sudo ip addr add 10.212.0.1/30 dev veth-peer
+fi
+UBUNTU_IP=\$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
 echo "$UBUNTU_IP"`,
   install: `sudo apt update
 sudo apt install -y apache2
@@ -45,16 +49,25 @@ sudo service apache2 restart
 ss -ltn | grep ':80'
 curl -fsS -H 'Host: db.example.com' http://127.0.0.1/`,
   dns: `UBUNTU_IP=\$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
+if [ -z "$UBUNTU_IP" ]; then
+  sudo ip addr add 10.212.0.1/30 dev veth-peer
+fi
+UBUNTU_IP=\$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
 echo "$UBUNTU_IP"
-test -n "$UBUNTU_IP"
+if [ -n "$UBUNTU_IP" ]; then
 sudo tee /etc/dnsmasq.d/db.example.com.conf >/dev/null <<EOF
 address=/db.example.com/\${UBUNTU_IP}
 local=/db.example.com/
 EOF
+cat /etc/dnsmasq.d/db.example.com.conf
 sudo dnsmasq --test
 sudo service dnsmasq reload || sudo kill -HUP \$(pidof dnsmasq)
-dig +short db.example.com @"$UBUNTU_IP"`,
-  resolv: `# On Kali. Paste the Ubuntu address.
+dig +short db.example.com @"$UBUNTU_IP"
+fi`,
+  resolv: `# On Kali. Skip the add if ip -4 addr show veth-peer already shows an address.
+if ! ip -4 -o addr show dev veth-peer | grep -q .; then
+  sudo ip addr add 10.212.0.2/30 dev veth-peer
+fi
 UBUNTU_IP=10.212.0.1
 sudo rm -f /etc/resolv.conf
 printf 'nameserver %s\\n' "$UBUNTU_IP" | sudo tee /etc/resolv.conf
@@ -105,7 +118,7 @@ export default function Page() {
 
       <Block title="1. Ubuntu address" where="Ubuntu" text={commands.address} />
       <p className="text-sm leading-6 text-muted-foreground">
-        Use the address this prints everywhere below. <code className="font-mono">10.212.0.1</code> is only a stand-in.
+        Use the address this prints everywhere below. eth0 and eth1 are other networks. Do not put the lab address on them. <code className="font-mono">ip addr add</code> lasts until the container stops.
       </p>
 
       <Block title="2. Install Apache" where="Ubuntu" text={commands.install} />
@@ -146,16 +159,19 @@ export default function Page() {
         After the file is fixed and <code className="font-mono">dnsmasq --test</code> passes, start it with{" "}
         <code className="font-mono">sudo service dnsmasq start</code>.{" "}
         A bad file usually contains a blank address or the literal characters <code className="font-mono">{"${UBUNTU_IP}"}</code>.{" "}
+        If veth-peer has no IPv4, the block adds <code className="font-mono">10.212.0.1/30</code> and reads it again.
         <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print the veth address before tee.
+        The file is written only when that value is non-empty.
         Then <code className="font-mono">cat /etc/dnsmasq.d/db.example.com.conf</code> must show{" "}
-        <code className="font-mono">address=/db.example.com/</code> followed by that address.{" "}
+        <code className="font-mono">address=/db.example.com/</code> followed by that numeric address.{" "}
         <code className="font-mono">dig</code> should print the veth address.{" "}
         <code className="font-mono">local=</code> keeps <code className="font-mono">db.example.com</code> from being looked up on the Internet.
       </p>
 
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
       <p className="text-sm leading-6 text-muted-foreground">
-        Change <code className="font-mono">10.212.0.1</code> to the address from step 1 before you run it.
+        Skip the add if <code className="font-mono">ip -4 addr show veth-peer</code> already shows an address.
+        The nameserver is Ubuntu’s veth address from step 1 (<code className="font-mono">10.212.0.1</code> when that step added the /30).
         The curl should print the same page. Then open <code className="font-mono">http://db.example.com</code> in the Kali browser.
         If the browser loads a different site, turn DNS over HTTPS off.
       </p>
