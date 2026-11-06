@@ -23,7 +23,7 @@ const plex = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "COM212 web server",
   description:
-    "Install Apache on Ubuntu, serve db.example.com, and point Kali's resolv.conf at Ubuntu.",
+    "Install Apache on Ubuntu, serve www.example.com, and point Kali's resolv.conf at Ubuntu.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
