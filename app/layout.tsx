@@ -5,28 +5,25 @@ import "./globals.css";
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-source",
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600"],
 });
 
 const newsreader = Newsreader({
   subsets: ["latin"],
   variable: "--font-newsreader",
-  weight: ["400", "500", "600", "700"],
+  weight: ["500", "600"],
 });
 
 const plex = IBM_Plex_Mono({
   subsets: ["latin"],
   variable: "--font-plex",
-  weight: ["400", "500"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "COM212 web server lab",
-    template: "%s · COM212 web server lab",
-  },
+  title: "COM212 web server",
   description:
-    "Step-by-step lab: serve example.com from Apache on Ubuntu and open it from Kali across veth-peer, using the dnsmasq server already on the link.",
+    "Install Apache on Ubuntu, serve db.example.com, and point Kali's resolv.conf at Ubuntu.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

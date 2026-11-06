@@ -3,33 +3,46 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function CopyButton({
-  text,
-  label = "Copy",
-}: {
-  text: string;
-  label?: string;
-}) {
-  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+function writeClipboard(text: string) {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.top = "0";
+  area.style.left = "0";
+  area.style.opacity = "0";
+  document.body.append(area);
+  area.focus();
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  area.remove();
+  if (navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(text).catch(() => undefined);
+  }
+  return ok;
+}
+
+export function CopyButton({ text }: { text: string }) {
+  const [label, setLabel] = useState("Copy");
 
   return (
     <Button
       type="button"
       variant="secondary"
       size="sm"
-      className="shrink-0"
       aria-label={label}
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setState("copied");
-          window.setTimeout(() => setState("idle"), 1600);
-        } catch {
-          setState("failed");
-        }
+      onClick={() => {
+        const next = writeClipboard(text) ? "Copied" : "Select the text";
+        setLabel(next);
+        window.setTimeout(() => setLabel("Copy"), 1600);
       }}
     >
-      {state === "copied" ? "Copied" : state === "failed" ? "Select text" : label}
+      {label}
     </Button>
   );
 }
