@@ -48,7 +48,7 @@ curl -fsS -H 'Host: db.example.com' http://127.0.0.1/`,
 address=/db.example.com/\${UBUNTU_IP}
 local=/db.example.com/
 EOF
-sudo service dnsmasq restart
+sudo service dnsmasq reload || sudo kill -HUP $(pidof dnsmasq)
 dig +short db.example.com @"$UBUNTU_IP"`,
   resolv: `# On Kali. Paste the Ubuntu address.
 UBUNTU_IP=10.212.0.1
@@ -130,6 +130,7 @@ export default function Page() {
         text={commands.dns}
       />
       <p className="text-sm leading-6 text-muted-foreground">
+        Port 53 is already in use because this dnsmasq is already running. Do not start a second copy. If you already ran restart and it failed, the original process is still the one listening; reload it.{" "}
         <code className="font-mono">dig</code> should print the veth address.{" "}
         <code className="font-mono">local=</code> keeps <code className="font-mono">db.example.com</code> from being looked up on the Internet.
       </p>
