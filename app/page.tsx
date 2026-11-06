@@ -74,7 +74,6 @@ UBUNTU_IP=192.168.200.1
 sudo rm -f /etc/resolv.conf
 printf 'nameserver %s\\n' "\$UBUNTU_IP" | sudo tee /etc/resolv.conf
 ping -c 3 "\$UBUNTU_IP"
-UV_USE_IO_URING=0 dig +short db.example.com
 getent hosts db.example.com
 curl -fsS http://db.example.com`,
 };
@@ -176,9 +175,9 @@ export default function Page() {
         <code className="font-mono">10.212.0.1/30</code>. Those two subnets do not reach each other.{" "}
         <code className="font-mono">UBUNTU_IP</code> must be the address Ubuntu printed with{" "}
         <code className="font-mono">{'echo "$UBUNTU_IP"'}</code>.{" "}
-        If dig aborts with <code className="font-mono">uv.c:142</code> and{" "}
-        <code className="font-mono">RUNTIME_CHECK(fd &gt;= 0)</code>, libuv could not open an event fd (io_uring is blocked).
-        Prefix dig with <code className="font-mono">UV_USE_IO_URING=0</code>.{" "}
+        <code className="font-mono">dig</code>, <code className="font-mono">host</code>, and <code className="font-mono">nslookup</code> abort on this Kali with{" "}
+        <code className="font-mono">uv.c:142</code> and <code className="font-mono">RUNTIME_CHECK(fd &gt;= 0)</code>, including when{" "}
+        <code className="font-mono">UV_USE_IO_URING=0</code> is set. That is libuv failing before any query. Skip them.{" "}
         <code className="font-mono">getent hosts db.example.com</code> should print{" "}
         <code className="font-mono">192.168.200.1</code> and curl should print the page.
         Then open <code className="font-mono">http://db.example.com</code> in the Kali browser.
