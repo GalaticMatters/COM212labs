@@ -61,14 +61,19 @@ local=/db.example.com/
 EOF
 cat /etc/dnsmasq.d/db.example.com.conf
 sudo dnsmasq --test
-sudo service dnsmasq reload || sudo kill -HUP \$(pidof dnsmasq)
+sudo service dnsmasq stop
+sudo kill \$(pidof dnsmasq) 2>/dev/null || true
+pidof dnsmasq || echo stopped
+sudo service dnsmasq start
 dig +short db.example.com @"$UBUNTU_IP"
 fi`,
   resolv: `# On Kali. Skip the add if ip -4 addr show veth-peer already shows an address.
 if ! ip -4 -o addr show dev veth-peer | grep -q .; then
   sudo ip addr add 10.212.0.2/30 dev veth-peer
 fi
-UBUNTU_IP=10.212.0.1
+# Set UBUNTU_IP to the address Ubuntu printed (echo "$UBUNTU_IP").
+# 10.212.0.1 is only correct when Ubuntu had no address and the guide added 10.212.0.1/30.
+UBUNTU_IP=
 sudo rm -f /etc/resolv.conf
 printf 'nameserver %s\\n' "$UBUNTU_IP" | sudo tee /etc/resolv.conf
 ping -c 3 "$UBUNTU_IP"
@@ -147,17 +152,13 @@ export default function Page() {
         text={commands.dns}
       />
       <p className="text-sm leading-6 text-muted-foreground">
-        The init script line{" "}
-        <code className="font-mono">Restarting DNS forwarder and DHCP server configuration syntax check</code>{" "}
-        is a restart. It runs <code className="font-mono">dnsmasq --test</code> and hides the error
-        (<code className="font-mono">{">/dev/null"}</code>).{" "}
-        <code className="font-mono">[fail]</code> means the config is invalid, not that port 53 is busy.
-        This block runs <code className="font-mono">sudo dnsmasq --test</code> before any reload so the real error is printed.
-        Only if that test says syntax is OK:{" "}
-        <code className="font-mono">{"sudo service dnsmasq reload || sudo kill -HUP $(pidof dnsmasq)"}</code>.
-        If <code className="font-mono">pidof dnsmasq</code> prints nothing, the failed restart stopped the old process.
-        After the file is fixed and <code className="font-mono">dnsmasq --test</code> passes, start it with{" "}
-        <code className="font-mono">sudo service dnsmasq start</code>.{" "}
+        HUP does not load a new address= line.{" "}
+        <code className="font-mono">echo stopped</code> must appear before{" "}
+        <code className="font-mono">sudo service dnsmasq start</code>.
+        If start says port 53 is in use, kill the pid that{" "}
+        <code className="font-mono">pidof dnsmasq</code> prints and start once more.
+        Do not use force-reload.{" "}
+        <code className="font-mono">sudo dnsmasq --test</code> prints a syntax error before the stop.
         A bad file usually contains a blank address or the literal characters <code className="font-mono">{"${UBUNTU_IP}"}</code>.{" "}
         If veth-peer has no IPv4, the block adds <code className="font-mono">10.212.0.1/30</code> and reads it again.
         <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print the veth address before tee.
@@ -171,7 +172,11 @@ export default function Page() {
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
       <p className="text-sm leading-6 text-muted-foreground">
         Skip the add if <code className="font-mono">ip -4 addr show veth-peer</code> already shows an address.
-        The nameserver is Ubuntu’s veth address from step 1 (<code className="font-mono">10.212.0.1</code> when that step added the /30).
+        Set <code className="font-mono">UBUNTU_IP</code> to the address Ubuntu printed with{" "}
+        <code className="font-mono">{'echo "$UBUNTU_IP"'}</code>.{" "}
+        <code className="font-mono">10.212.0.1</code> is only correct when Ubuntu had no address and the guide added{" "}
+        <code className="font-mono">10.212.0.1/30</code>.
+        That printed address is the nameserver in <code className="font-mono">/etc/resolv.conf</code>.
         The curl should print the same page. Then open <code className="font-mono">http://db.example.com</code> in the Kali browser.
         If the browser loads a different site, turn DNS over HTTPS off.
       </p>
