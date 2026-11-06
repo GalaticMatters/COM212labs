@@ -35,17 +35,20 @@ const commands = {
 UBUNTU_IP=$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
 echo "$UBUNTU_IP"`,
   install: `sudo apt update
-sudo apt install -y apache2`,
+sudo apt install -y apache2
+sudo service apache2 start`,
   site: tee("/var/www/html/index.html", indexHtml),
   vhost: `${tee("/etc/apache2/sites-available/db.example.com.conf", vhost)}
 sudo a2ensite db.example.com.conf
-sudo systemctl reload apache2
+sudo apache2ctl configtest
+sudo service apache2 restart
+ss -ltn | grep ':80'
 curl -fsS -H 'Host: db.example.com' http://127.0.0.1/`,
   dns: `sudo tee /etc/dnsmasq.d/db.example.com.conf >/dev/null <<EOF
 address=/db.example.com/\${UBUNTU_IP}
 local=/db.example.com/
 EOF
-sudo systemctl restart dnsmasq
+sudo service dnsmasq restart
 dig +short db.example.com @"$UBUNTU_IP"`,
   resolv: `# On Kali. Paste the Ubuntu address.
 UBUNTU_IP=10.212.0.1
@@ -116,6 +119,9 @@ export default function Page() {
       />
       <p className="text-sm leading-6 text-muted-foreground">
         The curl should print the heading <code className="font-mono">db.example.com</code>.
+        If it says it failed to connect to port 80, Apache is not running. Run{" "}
+        <code className="font-mono">sudo service apache2 start</code> and read{" "}
+        <code className="font-mono">sudo tail /var/log/apache2/error.log</code>.
       </p>
 
       <Block
