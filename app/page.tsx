@@ -51,7 +51,8 @@ sudo tee /etc/dnsmasq.d/db.example.com.conf >/dev/null <<EOF
 address=/db.example.com/\${UBUNTU_IP}
 local=/db.example.com/
 EOF
-sudo service dnsmasq reload || sudo kill -HUP $(pidof dnsmasq)
+sudo dnsmasq --test
+sudo service dnsmasq reload || sudo kill -HUP \$(pidof dnsmasq)
 dig +short db.example.com @"$UBUNTU_IP"`,
   resolv: `# On Kali. Paste the Ubuntu address.
 UBUNTU_IP=10.212.0.1
@@ -133,10 +134,23 @@ export default function Page() {
         text={commands.dns}
       />
       <p className="text-sm leading-6 text-muted-foreground">
-        Port 53 is already in use because this dnsmasq is already running. Do not start a second copy. If you already ran restart and it failed, the original process is still the one listening; reload it.{" "}
+        The init script line{" "}
+        <code className="font-mono">Restarting DNS forwarder and DHCP server configuration syntax check</code>{" "}
+        is a restart. It runs <code className="font-mono">dnsmasq --test</code> and hides the error
+        (<code className="font-mono">{">/dev/null"}</code>).{" "}
+        <code className="font-mono">[fail]</code> means the config is invalid, not that port 53 is busy.
+        This block runs <code className="font-mono">sudo dnsmasq --test</code> before any reload so the real error is printed.
+        Only if that test says syntax is OK:{" "}
+        <code className="font-mono">{"sudo service dnsmasq reload || sudo kill -HUP $(pidof dnsmasq)"}</code>.
+        If <code className="font-mono">pidof dnsmasq</code> prints nothing, the failed restart stopped the old process.
+        After the file is fixed and <code className="font-mono">dnsmasq --test</code> passes, start it with{" "}
+        <code className="font-mono">sudo service dnsmasq start</code>.{" "}
+        A bad file usually contains a blank address or the literal characters <code className="font-mono">{"${UBUNTU_IP}"}</code>.{" "}
+        <code className="font-mono">{'echo "$UBUNTU_IP"'}</code> must print the veth address before tee.
+        Then <code className="font-mono">cat /etc/dnsmasq.d/db.example.com.conf</code> must show{" "}
+        <code className="font-mono">address=/db.example.com/</code> followed by that address.{" "}
         <code className="font-mono">dig</code> should print the veth address.{" "}
         <code className="font-mono">local=</code> keeps <code className="font-mono">db.example.com</code> from being looked up on the Internet.
-        If dig says <code className="font-mono">couldn&apos;t get address for &apos;&apos;</code>, UBUNTU_IP was empty: the echo line must print an address before dig runs, and if the conf file has nothing after <code className="font-mono">address=/db.example.com/</code>, run this block again so the real address is written.
       </p>
 
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
