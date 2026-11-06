@@ -44,7 +44,10 @@ sudo apache2ctl configtest
 sudo service apache2 restart
 ss -ltn | grep ':80'
 curl -fsS -H 'Host: db.example.com' http://127.0.0.1/`,
-  dns: `sudo tee /etc/dnsmasq.d/db.example.com.conf >/dev/null <<EOF
+  dns: `UBUNTU_IP=\$(ip -4 -o addr show dev veth-peer | awk '{print $4}' | cut -d/ -f1)
+echo "$UBUNTU_IP"
+test -n "$UBUNTU_IP"
+sudo tee /etc/dnsmasq.d/db.example.com.conf >/dev/null <<EOF
 address=/db.example.com/\${UBUNTU_IP}
 local=/db.example.com/
 EOF
@@ -133,6 +136,7 @@ export default function Page() {
         Port 53 is already in use because this dnsmasq is already running. Do not start a second copy. If you already ran restart and it failed, the original process is still the one listening; reload it.{" "}
         <code className="font-mono">dig</code> should print the veth address.{" "}
         <code className="font-mono">local=</code> keeps <code className="font-mono">db.example.com</code> from being looked up on the Internet.
+        If dig says <code className="font-mono">couldn&apos;t get address for &apos;&apos;</code>, UBUNTU_IP was empty: the echo line must print an address before dig runs, and if the conf file has nothing after <code className="font-mono">address=/db.example.com/</code>, run this block again so the real address is written.
       </p>
 
       <Block title="6. resolv.conf" where="Kali · /etc/resolv.conf" text={commands.resolv} />
