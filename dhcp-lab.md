@@ -6,7 +6,20 @@ These machines are containers. They do not have `systemctl`. Use `service`.
 
 When you are done, Kali has an address in `192.168.200.50`–`192.168.200.150`, can ping `192.168.200.1`, and its nameserver is `192.168.200.1`.
 
-## 1. Ubuntu address
+## 1. Reach Ubuntu from Kali
+
+Kali and Ubuntu share the same suffix. If the Kali machine is `kali01`, the Ubuntu machine is `ubuntu01`. If Kali is `kali02`, Ubuntu is `ubuntu02`.
+
+On Kali, read your own name, then log in to the matching Ubuntu machine. The username is `student` and the password is `student`.
+
+```bash
+hostname
+ssh student@ubuntu01
+```
+
+Use your own suffix in place of `01`. The first time SSH asks to continue, type `yes`. Steps 2 and 3 run in that Ubuntu session. Step 4 runs back on Kali.
+
+## 2. Ubuntu address
 
 On Ubuntu, `eth0` and `eth1` are other networks. Do not put the lab address on them.
 
@@ -18,7 +31,7 @@ ip -4 addr show veth-peer
 
 `veth-peer` should show `192.168.200.1/24`.
 
-## 2. DHCP server
+## 3. DHCP server
 
 On Ubuntu, dnsmasq listens only on `veth-peer` and leases `192.168.200.50`–`192.168.200.150` for 12 hours. Kali's nameserver will be `192.168.200.1`.
 
@@ -40,7 +53,7 @@ sudo service dnsmasq start
 
 `sudo dnsmasq --test` must say the syntax is OK. If start fails with `Address already in use`, a dnsmasq process is still running. Repeat the stop and kill, confirm `echo stopped`, then start once.
 
-## 3. Kali lease
+## 4. Kali lease
 
 On Kali, ask Ubuntu for a lease. Do not type a static address on `veth-peer`.
 
