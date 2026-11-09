@@ -33,9 +33,11 @@ ip -4 addr show veth-peer
 
 ## 3. DHCP server
 
-On Ubuntu, dnsmasq listens only on `veth-peer` and leases `192.168.200.50`–`192.168.200.150` for 12 hours. Kali's nameserver will be `192.168.200.1`.
+On Ubuntu, install dnsmasq before using it. It listens only on `veth-peer` and leases `192.168.200.50`–`192.168.200.150` for 12 hours. Kali's nameserver will be `192.168.200.1`.
 
 ```bash
+sudo apt update
+sudo apt install -y dnsmasq
 sudo tee /etc/dnsmasq.d/dhcp.conf >/dev/null <<'EOF'
 interface=veth-peer
 bind-interfaces
