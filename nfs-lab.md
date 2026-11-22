@@ -1,6 +1,6 @@
 # COM212 lab: NFS
 
-Finish the [DHCP lab](dhcp-lab.md) first. `ubuntu111` is the NFS server. `kali111` is the NFS client. They already share `veth-peer`, and Ubuntu's address on that interface is `192.168.200.1`.
+Finish the [DHCP lab](dhcp-lab.md) first. `ubuntu##` is the NFS server. `kali##` is the NFS client. They already share `veth-peer`, and Ubuntu's address on that interface is `192.168.200.1`.
 
 Do not export the share on `eth0` or `eth1`. Mount it over `veth-peer`.
 
@@ -10,10 +10,10 @@ When you are done, Kali reads a file written on Ubuntu and writes a file that Ub
 
 ## 1. Reach Ubuntu from Kali
 
-On `kali111`, log in to `ubuntu111`. The username is `student` and the password is `student`.
+On `kali##`, log in to `ubuntu##`. The `##` is the number in your hostname. `kali03` logs in to `ubuntu03` and writes `hello from ubuntu03`. Use your number everywhere `##` appears, including the SSH command and the hello lines. The username is `student` and the password is `student`.
 
 ```bash
-ssh student@ubuntu111
+ssh student@ubuntu##
 ```
 
 The first time SSH asks to continue, type `yes`. Steps 2 and 3 run in that Ubuntu session. Step 3 leaves `unfsd` running, so open a second SSH session for any later Ubuntu command. Step 4 runs back on Kali.
@@ -27,7 +27,7 @@ curl -fsSL -o /tmp/install-unfs3.sh https://raw.githubusercontent.com/GalaticMat
 sudo bash /tmp/install-unfs3.sh
 sudo mkdir -p /srv/nfs/lab
 sudo chmod 777 /srv/nfs/lab
-printf 'hello from ubuntu111\n' | sudo tee /srv/nfs/lab/hello.txt
+printf 'hello from ubuntu##\n' | sudo tee /srv/nfs/lab/hello.txt
 ```
 
 The script must end with `unfs3 installed:` and a path such as `/usr/local/sbin/unfsd`. `hello.txt` is the file used to prove the mount.
@@ -60,7 +60,7 @@ showmount -e 127.0.0.1
 
 ## 4. Mount it on Kali
 
-On `kali111`:
+On `kali##`:
 
 ```bash
 ping -c 3 192.168.200.1
@@ -71,11 +71,11 @@ sudo mkdir -p /mnt/nfs
 sudo mount -t nfs -o nfsvers=3,nolock,tcp 192.168.200.1:/srv/nfs/lab /mnt/nfs
 mount | grep nfs
 cat /mnt/nfs/hello.txt
-printf 'hello from kali111\n' | sudo tee /mnt/nfs/from-kali.txt
+printf 'hello from kali##\n' | sudo tee /mnt/nfs/from-kali.txt
 ls -l /mnt/nfs
 ```
 
-`ping` should get replies. `showmount` should list `/srv/nfs/lab`. `cat` should print `hello from ubuntu111`. `ls` should show both `hello.txt` and `from-kali.txt`.
+`ping` should get replies. `showmount` should list `/srv/nfs/lab`. `cat` should print `hello from ubuntu##`. `ls` should show both `hello.txt` and `from-kali.txt`.
 
 Back on Ubuntu, in the second SSH session:
 
@@ -83,7 +83,7 @@ Back on Ubuntu, in the second SSH session:
 cat /srv/nfs/lab/from-kali.txt
 ```
 
-That should print `hello from kali111`.
+That should print `hello from kali##`.
 
 To disconnect the share on Kali:
 
