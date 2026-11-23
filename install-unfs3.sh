@@ -20,7 +20,11 @@ curl -fsSL -o unfs3.tar.gz https://github.com/unfs3/unfs3/releases/download/unfs
 tar -xzf unfs3.tar.gz
 cd unfs3-0.9.23
 
-./configure CFLAGS="-g -O2 -I/usr/include/tirpc" LIBS="-ltirpc"
+# Keep -I. and -I.. so exports.l can see config.h. Do not pass CFLAGS to make;
+# that override drops the -I.. path written into Config/Makefile.
+./configure \
+  CFLAGS="-g -O2 -I/usr/include/tirpc -I. -I.. -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-pointer-types" \
+  LIBS="-ltirpc"
 
 python3 << 'PY'
 from pathlib import Path
@@ -52,8 +56,8 @@ else:
     print("patched")
 PY
 
-sed -i 's/ *-L=\/usr\/ucblib//g; s/ *-R\/usr\/ucblib//g; s/ *-L\/usr\/ucblib//g' Makefile
-make CFLAGS="-g -O2 -I/usr/include/tirpc -Wall -W -D_GNU_SOURCE -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-pointer-types"
+sed -i 's/ *-L=\/usr\/ucblib//g; s/ *-R\/usr\/ucblib//g; s/ *-L\/usr\/ucblib//g' Makefile Config/Makefile
+make
 make install
 
 command -v unfsd
