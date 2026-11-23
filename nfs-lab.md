@@ -66,8 +66,8 @@ On `kali##`:
 
 ```bash
 ping -c 3 192.168.200.1
-sudo apt update
-sudo apt install -y nfs-common libnfs-utils
+curl -fsSL -o /tmp/install-nfs-client.sh https://raw.githubusercontent.com/GalaticMatters/COM212labs/main/install-nfs-client.sh
+sudo bash /tmp/install-nfs-client.sh
 showmount -e 192.168.200.1
 sudo nfs-ls 'nfs://192.168.200.1/srv/nfs/lab?version=3'
 sudo nfs-cat 'nfs://192.168.200.1/srv/nfs/lab/hello.txt?version=3'
@@ -75,7 +75,7 @@ printf 'hello from kali##\n' > /tmp/from-kali.txt
 sudo nfs-cp /tmp/from-kali.txt 'nfs://192.168.200.1/srv/nfs/lab/from-kali.txt?version=3'
 ```
 
-`ping` should get replies. `showmount` should list `/srv/nfs/lab`. `nfs-ls` should list `hello.txt`. `nfs-cat` should print `hello from ubuntu##`.
+The script must end with `nfs client tools installed:` and a path such as `/usr/local/bin/nfs-ls`. `ping` should get replies. `showmount` should list `/srv/nfs/lab`. `nfs-ls` should list `hello.txt`. `nfs-cat` should print `hello from ubuntu##`.
 
 Back on Ubuntu, in the second SSH session:
 
