@@ -2,9 +2,9 @@
 
 Finish the [DHCP lab](dhcp-lab.md) first. `ubuntu##` is the NFS server. `kali##` is the NFS client. They already share `veth-peer`, and Ubuntu's address on that interface is `192.168.200.1`.
 
-Do not export the share on `eth0` or `eth1`. Mount it over `veth-peer`.
+Do not export the share on `eth0` or `eth1`. Use the `veth-peer` network.
 
-These machines are containers. They do not have `systemctl`. Use `service`. The kernel cannot run `nfs-kernel-server`, so this lab uses `unfsd` from `unfs3`. One script installs that program. The lab is the export and the mount.
+These machines are containers. They do not have `systemctl`. Use `service`. The kernel cannot run `nfs-kernel-server`, so this lab uses `unfsd` from `unfs3`. One script installs that program. The same container blocks `mount -t nfs` with `operation not permitted`, so Kali reads and writes the share with `nfs-cat` and `nfs-cp`.
 
 When you are done, Kali reads a file written on Ubuntu and writes a file that Ubuntu can read.
 
@@ -34,11 +34,11 @@ The script must end with `unfs3 installed:` and a path such as `/usr/local/sbin/
 
 ## 3. Export and serve
 
-On Ubuntu, export that directory only to the `veth-peer` subnet. `no_root_squash` lets root on Kali write files in the share. `unfsd -d` stays in the foreground. Leave this session open.
+On Ubuntu, export that directory only to the `veth-peer` subnet. `no_root_squash` lets root on Kali write files in the share. `insecure` lets Kali's userspace client use a normal source port. `unfsd -d` stays in the foreground. Leave this session open. If `unfsd` is already running from an earlier attempt, press Ctrl+C in that session before starting it again.
 
 ```bash
 sudo tee /etc/exports >/dev/null <<'EOF'
-/srv/nfs/lab 192.168.200.0/24(rw,no_root_squash)
+/srv/nfs/lab 192.168.200.0/24(rw,no_root_squash,insecure)
 EOF
 sudo service rpcbind start || true
 sudo unfsd -e /etc/exports -d
@@ -58,24 +58,24 @@ showmount -e 127.0.0.1
 
 `showmount` should list `/srv/nfs/lab`. `Program not registered` means `unfsd` is not running.
 
-## 4. Mount it on Kali
+## 4. Read and write the share from Kali
+
+`sudo mount -t nfs` fails in this container with `operation not permitted`. Root inside the container is still not allowed to create a kernel NFS mount. `nfs-ls`, `nfs-cat`, and `nfs-cp` speak NFSv3 to `unfsd` and do not call `mount`. `/mnt/nfs` is only a local directory, so a file written there stays on Kali.
 
 On `kali##`:
 
 ```bash
 ping -c 3 192.168.200.1
 sudo apt update
-sudo apt install -y nfs-common
+sudo apt install -y nfs-common libnfs-utils
 showmount -e 192.168.200.1
-sudo mkdir -p /mnt/nfs
-sudo mount -t nfs -o nfsvers=3,nolock,tcp 192.168.200.1:/srv/nfs/lab /mnt/nfs
-mount | grep nfs
-cat /mnt/nfs/hello.txt
-printf 'hello from kali##\n' | sudo tee /mnt/nfs/from-kali.txt
-ls -l /mnt/nfs
+sudo nfs-ls 'nfs://192.168.200.1/srv/nfs/lab?version=3'
+sudo nfs-cat 'nfs://192.168.200.1/srv/nfs/lab/hello.txt?version=3'
+printf 'hello from kali##\n' > /tmp/from-kali.txt
+sudo nfs-cp /tmp/from-kali.txt 'nfs://192.168.200.1/srv/nfs/lab/from-kali.txt?version=3'
 ```
 
-`ping` should get replies. `showmount` should list `/srv/nfs/lab`. `cat` should print `hello from ubuntu##`. `ls` should show both `hello.txt` and `from-kali.txt`.
+`ping` should get replies. `showmount` should list `/srv/nfs/lab`. `nfs-ls` should list `hello.txt`. `nfs-cat` should print `hello from ubuntu##`.
 
 Back on Ubuntu, in the second SSH session:
 
@@ -85,16 +85,10 @@ cat /srv/nfs/lab/from-kali.txt
 
 That should print `hello from kali##`.
 
-To disconnect the share on Kali:
-
-```bash
-sudo umount /mnt/nfs
-```
-
 ## Done
 
 You are finished when all of these are true:
 
 - `unfsd` on Ubuntu is serving `/srv/nfs/lab` to `192.168.200.0/24`.
-- Kali has that directory mounted at `/mnt/nfs`.
-- Kali can read `hello.txt`, and Ubuntu can read `from-kali.txt`.
+- `nfs-cat` on Kali prints `hello from ubuntu##`.
+- Ubuntu can read `/srv/nfs/lab/from-kali.txt`.
